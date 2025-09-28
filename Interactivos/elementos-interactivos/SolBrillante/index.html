@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sol Brillante con Canvas</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .sun-container {
+            position: relative;
+            z-index: 2;
+            cursor: pointer;
+            width: 250px;
+            height: 250px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .sun {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #ffeb99 0%, #ffc300 70%, #ff7b00 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 50px 20px rgba(255, 195, 0, 0.7),
+                        0 0 100px 40px rgba(255, 123, 0, 0.4);
+            transition: box-shadow 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .sun.brighter {
+            box-shadow: 0 0 80px 35px rgba(255, 230, 109, 1),
+                        0 0 180px 90px rgba(255, 195, 0, 0.8),
+                        0 0 250px 150px rgba(255, 123, 0, 0.6),
+                        0 0 300px 200px rgba(255, 123, 0, 0.3);
+        }
+
+        .sun-text {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1rem;
+            text-shadow: 0 0 5px black;
+            user-select: none;
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starfield"></canvas>
+    <div class="sun-container">
+        <div class="sun" id="theSun"></div>
+        <div class="sun-text">Haz clic en el sol</div>
+    </div>
+
+    <script>
+        // --- Starfield with Canvas ---
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        // Set canvas size to window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            createStars();
+        }
+
+        // Create stars with random properties
+        function createStars() {
+            stars = [];
+            const numberOfStars = (canvas.width * canvas.height) / 1000;
+            for (let i = 0; i < numberOfStars; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    opacity: Math.random(),
+                    speed: Math.random() * 0.5 + 0.1,
+                    direction: Math.random() > 0.5 ? 1 : -1
+                });
+            }
+        }
+
+        // Animation loop for stars
+        function animateStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            stars.forEach(star => {
+                // Update star position and opacity
+                star.opacity += 0.01 * star.direction;
+                if (star.opacity > 1 || star.opacity < 0) {
+                    star.direction *= -1;
+                }
+
+                // Draw the star
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                ctx.fill();
+            });
+            requestAnimationFrame(animateStars);
+        }
+
+        // --- Sun Click Functionality ---
+        const sunElement = document.getElementById('theSun');
+        const sunTextElement = document.querySelector('.sun-text');
+
+        sunElement.addEventListener('click', () => {
+            sunElement.classList.toggle('brighter');
+            // Hide the text after the first click
+            sunTextElement.style.opacity = '0';
+        });
+
+        // Initialize on page load
+        window.onload = function() {
+            resizeCanvas();
+            animateStars();
+        };
+
+        // Re-adjust canvas size on window resize
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
