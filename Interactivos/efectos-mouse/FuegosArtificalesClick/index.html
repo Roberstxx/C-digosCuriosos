@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuegos Artificiales al Clic</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Evita barras de desplazamiento */
+            background-color: #000; /* Fondo negro para el cielo nocturno */
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Previene el desplazamiento de la página en dispositivos táctiles */
+        }
+
+        canvas {
+            display: block; /* Elimina el espacio extra debajo del canvas */
+            width: 100%;
+            height: 100%;
+            background-color: #000; /* Asegura un fondo negro para el canvas */
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2;
+            user-select: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworksCanvas"></canvas>
+    <div class="info-panel">¡Haz clic o toca la pantalla para ver los fuegos artificiales!</div>
+
+    <script>
+        // Obtiene el elemento canvas y su contexto de dibujo 2D
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Variables para el tamaño del canvas
+        let width, height;
+
+        // Arreglo para almacenar todas las instancias de fuegos artificiales activos
+        const fireworks = [];
+
+        // Función para ajustar el tamaño del canvas a la ventana
+        const setCanvasSize = () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        };
+
+        // Escucha el evento de redimensionamiento de la ventana para ajustar el canvas
+        window.addEventListener('resize', setCanvasSize);
+        // Establece el tamaño inicial del canvas
+        setCanvasSize();
+
+        // --- Clase Particle (Partícula individual de un fuego artificial) ---
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; // Posición X inicial
+                this.y = y; // Posición Y inicial
+                this.color = color; // Color de la partícula
+                this.alpha = 1; // Opacidad de la partícula (se desvanecerá)
+                this.size = Math.random() * 2 + 1; // Tamaño de la partícula (entre 1 y 3)
+
+                // Velocidad inicial aleatoria para la explosión
+                const angle = Math.random() * Math.PI * 2; // Ángulo aleatorio (0 a 360 grados)
+                const speed = Math.random() * 5 + 1; // Velocidad aleatoria (entre 1 y 6)
+                this.vx = Math.cos(angle) * speed; // Velocidad en X
+                this.vy = Math.sin(angle) * speed; // Velocidad en Y
+
+                this.gravity = 0.05; // Gravedad que afecta la partícula
+                this.friction = 0.99; // Fricción para ralentizar la partícula
+            }
+
+            // Dibuja la partícula en el canvas
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.alpha})`;
+                ctx.fill();
+            }
+
+            // Actualiza la posición y propiedades de la partícula
+            update() {
+                this.vx *= this.friction; // Aplica fricción a la velocidad X
+                this.vy *= this.friction; // Aplica fricción a la velocidad Y
+                this.vy += this.gravity; // Aplica gravedad a la velocidad Y
+
+                this.x += this.vx; // Actualiza posición X
+                this.y += this.vy; // Actualiza posición Y
+
+                this.alpha -= 0.01; // Reduce la opacidad para desvanecer la partícula
+            }
+        }
+
+        // --- Clase Firework (Un fuego artificial completo) ---
+        class Firework {
+            constructor(x, y) {
+                this.x = x; // Posición X de la explosión
+                this.y = y; // Posición Y de la explosión
+                this.particles = []; // Arreglo para las partículas de este fuego artificial
+                this.hue = Math.random() * 360; // Tono de color aleatorio para el fuego artificial
+
+                // Genera un color RGB a partir del tono HSL
+                const hslToRgb = (h, s, l) => {
+                    let c = (1 - Math.abs(2 * l - 1)) * s,
+                        x = c * (1 - Math.abs((h / 60) % 2 - 1)),
+                        m = l - c / 2,
+                        r = 0, g = 0, b = 0;
+                    if (0 <= h && h < 60) { r = c; g = x; }
+                    else if (60 <= h && h < 120) { r = x; g = c; }
+                    else if (120 <= h && h < 180) { g = c; b = x; }
+                    else if (180 <= h && h < 240) { g = x; b = c; }
+                    else if (240 <= h && h < 300) { r = x; b = c; }
+                    else if (300 <= h && h < 360) { r = c; b = x; }
+                    return {
+                        r: Math.round((r + m) * 255),
+                        g: Math.round((g + m) * 255),
+                        b: Math.round((b + m) * 255)
+                    };
+                };
+
+                const baseColor = hslToRgb(this.hue, 1, 0.5); // Color base saturado
+
+                // Crea un número de partículas para la explosión
+                const numParticles = 100 + Math.random() * 50; // Entre 100 y 150 partículas
+                for (let i = 0; i < numParticles; i++) {
+                    // Ligeras variaciones de color para cada partícula
+                    const particleColor = {
+                        r: Math.max(0, Math.min(255, baseColor.r + (Math.random() - 0.5) * 50)),
+                        g: Math.max(0, Math.min(255, baseColor.g + (Math.random() - 0.5) * 50)),
+                        b: Math.max(0, Math.min(255, baseColor.b + (Math.random() - 0.5) * 50))
+                    };
+                    this.particles.push(new Particle(this.x, this.y, particleColor));
+                }
+            }
+
+            // Dibuja todas las partículas de este fuego artificial
+            draw() {
+                this.particles.forEach(particle => particle.draw());
+            }
+
+            // Actualiza todas las partículas y elimina las que se han desvanecido
+            update() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    if (this.particles[i].alpha <= 0.01) { // Si la partícula es casi invisible
+                        this.particles.splice(i, 1); // La elimina del arreglo
+                    }
+                }
+            }
+
+            // Indica si el fuego artificial ha terminado (no le quedan partículas)
+            isDone() {
+                return this.particles.length === 0;
+            }
+        }
+
+        // --- Event Listener para crear fuegos artificiales al clic/toque ---
+        canvas.addEventListener('mousedown', (e) => {
+            fireworks.push(new Firework(e.clientX, e.clientY));
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Previene el zoom o scroll en dispositivos táctiles
+            for (let i = 0; i < e.touches.length; i++) {
+                fireworks.push(new Firework(e.touches[i].clientX, e.touches[i].clientY));
+            }
+        }, { passive: false });
+
+        // --- Bucle principal de animación ---
+        const animate = () => {
+            // Limpia el canvas con un color semi-transparente para crear un efecto de rastro/difuminado
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Fondo negro con 10% de opacidad para el rastro
+            ctx.fillRect(0, 0, width, height);
+
+            // Actualiza y dibuja todos los fuegos artificiales
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update();
+                fireworks[i].draw();
+
+                if (fireworks[i].isDone()) {
+                    fireworks.splice(i, 1); // Elimina el fuego artificial si ya terminó
+                }
+            }
+
+            // Solicita el siguiente frame de animación
+            requestAnimationFrame(animate);
+        };
+
+        // Inicia la animación cuando la ventana se haya cargado completamente
+        window.onload = function () {
+            animate();
+        };
+    </script>
+</body>
+</html>
